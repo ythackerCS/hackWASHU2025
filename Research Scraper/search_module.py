@@ -616,7 +616,7 @@ async def fetch_author_metadata(session, author_name, institution_name=None, att
                 sleep_time = reset_time - time.time()
                 if sleep_time > 0:
                     # Exponential backoff with random jitter
-                    wait_time = min(2 ** attempt + random.uniform(0, 1), 120)  # Increase max wait time to 120 seconds
+                    wait_time = min(2 ** attempt + random.uniform(0, 1), 180)  # Increased max wait time to 180 seconds
                     print(f"Rate limited. Sleeping for {wait_time:.2f} seconds before retrying for {author_name_only}")
                     await asyncio.sleep(wait_time)
                     return await fetch_author_metadata(session, author_name, institution_name, attempt + 1)  # Retry with increased attempt
@@ -651,7 +651,9 @@ async def fetch_author_metadata(session, author_name, institution_name=None, att
         return {'author': author_name_only, 'citations': 0}
 
 
-async def build_author_conference_network_async(df, min_shared_conferences=1, min_citations=1):
+# ------------------------------
+# Build Author Conference Network and update incrementally
+async def build_author_conference_network_async(df):
     """
     Build an async author-level network based on conference participation.
     Node size = # conferences
@@ -660,10 +662,6 @@ async def build_author_conference_network_async(df, min_shared_conferences=1, mi
     df = df.copy()
     G = nx.Graph()
     author_confs = defaultdict(lambda: defaultdict(set))  # author -> {year -> set(conferences)}
-
-    # Get top 100 authors based on citation count
-    top_100_authors_df = df.nlargest(100, 'citations_total')  # Assumes 'citations_total' is the column with citation count
-    top_100_authors = set(top_100_authors_df['first_author'].tolist() + top_100_authors_df['last_author'].tolist())
 
     # Collect authors -> conferences mapping
     for _, row in df.iterrows():
@@ -677,33 +675,38 @@ async def build_author_conference_network_async(df, min_shared_conferences=1, mi
         year = str(row.get("publication_year", "N/A"))
 
         for author in authors:
-            if author in top_100_authors:
-                author_confs[author][year].add(conf_name)
+            author_confs[author][year].add(conf_name)
 
     # Exit early if no authors found
     if len(author_confs) == 0:
         print("⚠️ No authors found in DataFrame.")
-        return G
+        yield G
+        return
 
     print(f"DEBUG: Total authors collected: {len(author_confs)}")
 
-    # Optionally fetch additional metadata asynchronously (e.g., citations) for the top 100 authors
+    # Optionally fetch additional metadata asynchronously (e.g., citations) for the top authors
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_author_metadata(session, author) for author in author_confs.keys()]
         results = await asyncio.gather(*tasks)
 
     # Add nodes for authors with citation and shared conference filters
     author_metadata = {result['author']: result for result in results}
+
     skipped_authors = []
 
-    for author, confs_by_year in author_confs.items():
-        total_confs = sum(len(confs) for confs in confs_by_year.values())
-        
-        # Get citation data from metadata
-        citations = author_metadata.get(author, {}).get('citations', 0)
-        
-        # Apply minimum filters: only add nodes with enough conferences and citations
-        if total_confs >= min_shared_conferences and citations >= min_citations:
+    # Process authors in batches and update the graph incrementally
+    batch_size = 10  # Update the graph after processing every 10 authors
+    all_authors = list(author_confs.items())
+    for i in range(0, len(all_authors), batch_size):
+        batch = all_authors[i:i + batch_size]
+
+        # Add nodes for the current batch of authors
+        for author, confs_by_year in batch:
+            total_confs = sum(len(confs) for confs in confs_by_year.values())
+            citations = author_metadata.get(author, {}).get('citations', 0)
+            
+            # Add the author to the graph
             G.add_node(
                 author,
                 conferences=total_confs,
@@ -711,30 +714,24 @@ async def build_author_conference_network_async(df, min_shared_conferences=1, mi
                 citations=citations,
                 metadata=author_metadata.get(author, {})
             )
-        else:
-            skipped_authors.append(author)
 
-    # Add edges based on shared prestigious conferences
-    authors_list = list(G.nodes())  # Only include authors who passed the filters
-    for a1, a2 in itertools.combinations(authors_list, 2):
-        shared_count = 0
-        for year in set(author_confs[a1].keys()) & set(author_confs[a2].keys()):
-            shared_confs = author_confs[a1][year] & author_confs[a2][year]
-            # Calculate common prestigious conferences
-            shared_count += sum(prestige_rank.get(conf, 0) for conf in shared_confs)
+        # Return the updated graph after every batch
+        print(f"DEBUG: Added {len(batch)} authors to the graph.")
+        
+        # Yield the graph incrementally so the frontend can update
+        yield G  # This is where we yield the updated graph to show progress
 
-        if shared_count > 0:
-            G.add_edge(a1, a2, weight=shared_count)
-
-    print(f"DEBUG: Graph nodes: {G.number_of_nodes()} edges: {G.number_of_edges()}")
-    print(f"⚠️ Skipped authors: {skipped_authors}")
-    return G
+    # Once all authors are processed, yield the final graph
+    print("All authors processed.")
+    yield G  # Yield the final graph
 
 
+# ------------------------------
+# Plotting the Author Conference Network without filtering
 def plot_author_conference_graph(
     G, 
     title="Author Conference Network", 
-    min_shared_conferences=1, 
+    min_shared_conferences=0, 
     min_citations=0
 ):
     """
@@ -746,19 +743,17 @@ def plot_author_conference_graph(
         print("⚠️ No authors found.")
         return None
 
-    # Step 1: Filter edges by min_shared_conferences
+    # Step 1: Remove the filtering by min_shared_conferences (no threshold)
     H = nx.Graph()
     for u, v, data in G.edges(data=True):
-        if data.get("weight", 0) >= min_shared_conferences:
-            H.add_edge(u, v, **data)
+        H.add_edge(u, v, **data)
 
-    # Step 2: Filter nodes by min_citations and ensure they are connected
+    # Step 2: Remove the filtering by min_citations (no threshold)
     for node, data in G.nodes(data=True):
-        if node in H.nodes and data.get("conferences", 0) >= min_citations:
-            H.nodes[node].update(data)
+        H.add_node(node, **data)
 
     if H.number_of_nodes() == 0:
-        print(f"⚠️ No authors meet the thresholds: min_shared_conferences={min_shared_conferences}, min_citations={min_citations}")
+        print(f"⚠️ No authors found after processing the graph.")
         return None
 
     pos = nx.spring_layout(H, k=0.8, iterations=150, seed=42)
@@ -787,8 +782,8 @@ def plot_author_conference_graph(
         node_size.append(max(10, data.get("conferences", 1) * 5))
         node_text.append(
             f"<b>{node}</b><br>"
-            f"Conferences: {data.get('conferences',0)}<br>"
-            f"Years active: {', '.join(data.get('years',[]))}"
+            f"Conferences: {data.get('conferences', 0)}<br>"
+            f"Years active: {', '.join(data.get('years', []))}"
         )
 
     node_trace = go.Scatter(

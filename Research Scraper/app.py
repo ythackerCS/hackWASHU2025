@@ -1,7 +1,7 @@
 import os
 import asyncio
-import aiohttp
-from flask import Flask, render_template, request, url_for, jsonify
+from flask import Flask, render_template, request, jsonify, Response, url_for, current_app
+
 from search_module import (
     find_and_extract,
     render_search_output,
@@ -83,11 +83,11 @@ def search():
 
         <div class="mt-4">
             <label for="min_shared_conferences">Min Shared Conferences:</label>
-            <input type="number" id="min_shared_conferences" value="1" min="1" class="form-control" style="width: auto;">
+            <input type="number" id="min_shared_conferences" value="0" min="0" class="form-control" style="width: auto;">
         </div>
         <div class="mt-4">
             <label for="min_citations">Min Citations:</label>
-            <input type="number" id="min_citations" value="1" min="1" class="form-control" style="width: auto;">
+            <input type="number" id="min_citations" value="0" min="0" class="form-control" style="width: auto;">
         </div>
 
         <div class="form-check form-switch mt-4">
@@ -146,8 +146,11 @@ def search():
 # ------------------------------
 # Network endpoint for toggle
 # ------------------------------
+# ------------------------------
+# Network endpoint for toggle
+# ------------------------------
 @app.route("/network", methods=["POST"])
-def network():
+async def network():
     query = request.form.get("query")
     mode = request.form.get("mode", "sections")
     try:
@@ -163,29 +166,38 @@ def network():
     try:
         df = find_and_extract(query, n=n, mode=mode, print_output=False)
         
-        # Define an async function to build and plot the graph
-        async def build_and_plot():
-            G = await build_author_conference_network_async(df)
-            
-            # Pass the filter values to the plotting function
-            fig = plot_author_conference_graph(G, title="Author Conference Network", 
-                                               min_shared_conferences=min_shared_conferences, 
-                                               min_citations=min_citations)
+        # Async function to build and plot the graph, consuming the async generator properly
+        async def generate_graph():
+            result = []
+            async for G in build_author_conference_network_async(df):
+                # Updated plotting function
+                fig = plot_author_conference_graph(G, title="Author Conference Network", 
+                                                   min_shared_conferences=min_shared_conferences, 
+                                                   min_citations=min_citations)
 
-            os.makedirs("static", exist_ok=True)
-            graph_path = os.path.join("static", "author_network.html")
-            if fig:
-                fig.write_html(graph_path, include_plotlyjs="cdn")
-                html = f'<iframe src="{url_for("static", filename="author_network.html")}" width="100%" height="600" style="border:1px solid #ddd; border-radius:5px;"></iframe>'
-                return jsonify(success=True, html=html)
-            else:
-                return jsonify(success=False, error="No valid author network could be generated.")
-        
-        # Run the async function to generate the graph
-        return asyncio.run(build_and_plot())
+                # Ensure the application context is used when calling url_for()
+                os.makedirs("static", exist_ok=True)
+                graph_path = os.path.join("static", "author_network.html")
+
+                with current_app.app_context():
+                    if fig:
+                        fig.write_html(graph_path, include_plotlyjs="cdn")
+                        # Generate the URL for the iframe using the application context
+                        html = f'<iframe src="{url_for("static", filename="author_network.html")}" width="100%" height="600" style="border:1px solid #ddd; border-radius:5px;"></iframe>'
+                        result.append(html)
+            return result
+
+        # Convert async generator to a regular iterable
+        async def wrapper():
+            result = await generate_graph()  # Use await directly instead of asyncio.run()
+            for html in result:
+                yield f"data:{html}\n\n"
+
+        return Response(wrapper(), mimetype='text/event-stream')
 
     except Exception as e:
         return jsonify(success=False, error=str(e))
+
 
 
 # ------------------------------
