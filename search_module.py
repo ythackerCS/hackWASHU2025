@@ -217,80 +217,80 @@ def generate_html_file(df, filename="search_results.html"):
 def render_search_output(df, include_graphs=True):
     """
     Render a search results DataFrame as HTML with summary stats and optional graphs.
-    
-    Parameters:
-        df (pd.DataFrame): The results from find_and_extract.
-        include_graphs (bool): Whether to include citation graphs.
-    
-    Returns:
-        str: HTML string ready to embed in Flask.
+    Uses paper numbers instead of DOI for cleaner display.
     """
     from io import BytesIO
     import base64
     import matplotlib.pyplot as plt
 
+    # ---------- Add paper numbers ----------
+    df = df.copy()
+    df.insert(0, "#", range(1, len(df)+1))  # Paper # column
+
     # ---------- Summary stats ----------
     total_papers = len(df)
-    total_citations = df['citations_total'].sum() if 'citations_total' in df.columns else 0
-    avg_citations = df['citations_total'].mean() if 'citations_total' in df.columns else 0
-
     summary_html = f"""
     <div class="mb-3">
         <h4>Summary Stats</h4>
         <ul>
-            <li>Total papers: {total_papers}</li>
-            <li>Total citations: {total_citations}</li>
-            <li>Average citations per paper: {avg_citations:.2f}</li>
+            <li>Total papers found: {total_papers}</li>
         </ul>
     </div>
     """
 
-    # ---------- Table ----------
-    table_html = render_html_dataframe(df)
-
     # ---------- Graphs ----------
     graphs_html = ""
     if include_graphs and 'citations_total' in df.columns:
-        # Example: Histogram of citations
-        plt.figure(figsize=(6,4))
-        plt.hist(df['citations_total'], bins=10, color='skyblue', edgecolor='black')
-        plt.title("Citation Distribution")
-        plt.xlabel("Citations")
-        plt.ylabel("Number of papers")
+        import matplotlib
+        matplotlib.use('Agg')
+        fig, axs = plt.subplots(1, 2, figsize=(14, 5))
 
+        # Graph 1: Citation Distribution
+        axs[0].bar(df["#"], df['citations_total'], color='skyblue', edgecolor='black')
+        axs[0].set_title("Citation Distribution")
+        axs[0].set_xlabel("Paper #")
+        axs[0].set_ylabel("Citations")
+        axs[0].set_xticks(df["#"])
+        axs[0].legend(["Citations"], fontsize=8)
+
+        # Graph 2: Citations Over Last 4 Years
+        year_cols = [col for col in df.columns if col.isdigit()]
+        if year_cols:
+            for idx, row in df.iterrows():
+                y = [row[year] for year in sorted(year_cols)]
+                axs[1].plot(sorted(year_cols), y, marker='o', label=f"Paper {row['#']}")
+            axs[1].set_xlabel("Year")
+            axs[1].set_ylabel("Citations")
+            axs[1].set_title("Citations Over Last 4 Years")
+            axs[1].legend(fontsize=8)
+
+        plt.tight_layout(pad=3.0)
         buf = BytesIO()
-        plt.tight_layout()
-        plt.savefig(buf, format='png')
-        plt.close()
+        fig.savefig(buf, format='png', bbox_inches='tight')
+        plt.close(fig)
         buf.seek(0)
         img_base64 = base64.b64encode(buf.read()).decode('utf-8')
-        graphs_html += f'<div class="mb-3"><h4>Citation Histogram</h4><img src="data:image/png;base64,{img_base64}" class="img-fluid"></div>'
 
-    # Example: Citations over last 4 years (if columns exist)
-    year_cols = [col for col in df.columns if col.isdigit()]
-    if include_graphs and year_cols:
-        plt.figure(figsize=(6,4))
-        for idx, row in df.iterrows():
-            y = [row[year] for year in sorted(year_cols)]
-            plt.plot(sorted(year_cols), y, marker='o', label=row['title'][:30] + '...')
-        plt.xlabel("Year")
-        plt.ylabel("Citations")
-        plt.title("Citations over Last 4 Years")
-        plt.legend(fontsize=8)
-        buf = BytesIO()
-        plt.tight_layout()
-        plt.savefig(buf, format='png')
-        plt.close()
-        buf.seek(0)
-        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
-        graphs_html += f'<div class="mb-3"><h4>Citations Over Years</h4><img src="data:image/png;base64,{img_base64}" class="img-fluid"></div>'
+        graphs_html += f'''
+        <div class="mb-4" style="padding-bottom:20px;">
+            <h4>Graphs</h4>
+            <img src="data:image/png;base64,{img_base64}" class="img-fluid">
+        </div>
+        '''
 
-    # ---------- Combine all ----------
+    # ---------- Table ----------
+    table_html = f'''
+    <div style="max-height:500px; overflow:auto; border:1px solid #ddd; padding:10px; margin-top:20px;">
+        {render_html_dataframe(df)}
+    </div>
+    '''
+
+    # ---------- Combine ----------
     final_html = f"""
     <div>
         {summary_html}
-        {table_html}
         {graphs_html}
+        {table_html}
     </div>
     """
     return final_html
