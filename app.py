@@ -34,7 +34,6 @@ def search():
     # Convert DataFrame to HTML
     html_table = render_search_output(df, include_graphs=True)
 
-    # Render results in a simple HTML page
     return f"""
     <!DOCTYPE html>
     <html>
@@ -43,7 +42,7 @@ def search():
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     </head>
     <body class="container mt-5">
-        <h1>Search Results for '{query}'</h1>
+        <h1>Search Results for '{query.strip()}'</h1>
         <p>Mode: {mode} | Number of results: {n}</p>
         <div class="mt-4">{html_table}</div>
         <a href="/" class="btn btn-secondary mt-3">Back</a>
