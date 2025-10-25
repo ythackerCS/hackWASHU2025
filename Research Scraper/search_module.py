@@ -10,9 +10,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import plotly.graph_objects as go
 from datetime import datetime
-from urllib.parse import quote
+from urllib.parse import quote  # for URL encoding
+import urllib.request  # if you need request functionality
 import aiohttp
 import asyncio
+import itertools  # for combinations of authors
+from collections import defaultdict  # for author -> conferences mapping
+import json  # if you need JSON serialization for Flask responses
+import time 
+import random
+
 
 # --- Optional / Advanced (can comment out if not using async fetch) ---
 # import aiohttp  # For async OpenAlex API calls (optional)
@@ -23,7 +30,10 @@ SEMANTIC_SCHOLAR_URL = "https://api.semanticscholar.org/graph/v1/paper/"
 def search_openalex(query, n=10, extra_results=100):
     """
     Search OpenAlex using simple text search.
+    Returns list of dicts with first/last author names + schools.
     """
+    import requests
+
     params = {
         "search": query,
         "per_page": extra_results
@@ -45,6 +55,27 @@ def search_openalex(query, n=10, extra_results=100):
                 score += 1
             return score
 
+        # Extract first/last author names and schools
+        for paper in results:
+            authorships = paper.get("authorships", [])
+            if authorships:
+                # First author
+                first = authorships[0]
+                first_name = first.get("author", {}).get("display_name", "")
+                first_aff = first.get("institutions", [])
+                first_school = first_aff[0]["display_name"] if first_aff else ""
+                paper["first_author"] = f"{first_name} | {first_school}"
+
+                # Last author
+                last = authorships[-1]
+                last_name = last.get("author", {}).get("display_name", "")
+                last_aff = last.get("institutions", [])
+                last_school = last_aff[0]["display_name"] if last_aff else ""
+                paper["last_author"] = f"{last_name} | {last_school}"
+            else:
+                paper["first_author"] = ""
+                paper["last_author"] = ""
+
         # Sort by relevance, then citations as tie-breaker
         results_sorted = sorted(
             results,
@@ -57,6 +88,7 @@ def search_openalex(query, n=10, extra_results=100):
     except requests.RequestException as e:
         print("Error while searching OpenAlex:", e)
         return []
+
 
 def get_pdf_link(paper):
     arxiv_id = paper.get("ids", {}).get("arxiv")
@@ -124,7 +156,6 @@ def find_and_extract(query, n=3, mode="sections", print_output=True):
     success_count = 0
     i = 0
     paper_index = 1
-
     current_year = datetime.now().year
 
     while success_count < n and i < len(papers):
@@ -137,9 +168,24 @@ def find_and_extract(query, n=3, mode="sections", print_output=True):
         pub_date = paper.get("publication_date", "N/A")
         publication_year = pub_date.split("-")[0] if pub_date != "N/A" else "N/A"
 
+        # --- First & Last Author with School ---
         authorships = paper.get("authorships", [])
-        first_author_inst = authorships[0]["institutions"][0]["display_name"] if authorships and authorships[0]["institutions"] else "N/A"
-        last_author_inst = authorships[-1]["institutions"][0]["display_name"] if authorships and authorships[-1]["institutions"] else "N/A"
+        if authorships:
+            # First author
+            first_author_name = authorships[0].get("author", {}).get("display_name", "N/A")
+            first_aff = authorships[0].get("institutions", [])
+            first_author_school = first_aff[0]["display_name"] if first_aff else "N/A"
+            first_author_full = f"{first_author_name} | {first_author_school}"
+
+            # Last author
+            last_author_name = authorships[-1].get("author", {}).get("display_name", "N/A")
+            last_aff = authorships[-1].get("institutions", [])
+            last_author_school = last_aff[0]["display_name"] if last_aff else "N/A"
+            last_author_full = f"{last_author_name} | {last_author_school}"
+        else:
+            first_author_full = "N/A"
+            last_author_full = "N/A"
+
         pdf_url = get_pdf_link(paper)
 
         # Extract last 4 years of citations
@@ -178,8 +224,8 @@ def find_and_extract(query, n=3, mode="sections", print_output=True):
             "citations_total": citations,
             "publication_date": pub_date,
             "publication_year": publication_year,
-            "first_author_institution": first_author_inst,
-            "last_author_institution": last_author_inst,
+            "first_author": first_author_full,
+            "last_author": last_author_full,
             "pdf_url": pdf_url,
             **last_4_years_citations,  # Add citations per year
             **text_data
@@ -195,6 +241,7 @@ def find_and_extract(query, n=3, mode="sections", print_output=True):
 
     df = pd.DataFrame(results)
     return df
+
 
 def normalize_doi(doi):
     """Clean and standardize DOI strings."""
@@ -257,8 +304,11 @@ def build_citation_network(df, max_per_request=20):
     return G
 
 
-def plot_citation_graph(G):
+def plot_citation_graph(G, title="Co-Citation Network"):
     """Visualize the citation graph using Plotly + NetworkX."""
+    import networkx as nx
+    import plotly.graph_objects as go
+
     pos = nx.spring_layout(G, k=0.8, iterations=100, seed=42)
 
     edge_x, edge_y = [], []
@@ -280,8 +330,12 @@ def plot_citation_graph(G):
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
-        node_text.append(f"{data['title']}<br>DOI: {data.get('doi')}<br>Citations: {data.get('citations', 0)}")
-        node_size.append(max(10, 5 + data.get("citations", 0)**0.5))
+        # Wrap long titles for display
+        title_text = data.get('title', '')
+        if len(title_text) > 60:
+            title_text = title_text[:57] + "..."
+        node_text.append(f"{title_text}<br>DOI: {data.get('doi')}<br>Citations: {data.get('citations_total', 0)}")
+        node_size.append(max(10, 5 + (data.get("citations_total", 0) ** 0.5)))
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
@@ -297,13 +351,12 @@ def plot_citation_graph(G):
     )
 
     fig = go.Figure(data=[edge_trace, node_trace],
-        layout=go.Layout(
-            title="Intra-Dataset Citation Graph (via DOIs)",
-            showlegend=False,
-            hovermode='closest',
-            margin=dict(b=0, l=0, r=0, t=50)
-        )
-    )
+                    layout=go.Layout(
+                        title=title,
+                        showlegend=False,
+                        hovermode='closest',
+                        margin=dict(b=50, l=50, r=50, t=100)
+                    ))
     return fig
 
 def render_md_dataframe(df):
@@ -362,15 +415,32 @@ def generate_html_file(df, filename="search_results.html"):
 def render_search_output(df):
     """
     Render a search results DataFrame as interactive HTML.
-    Includes DataTables sorting/filtering and Plotly graphs
-    that automatically update based on visible table rows.
+    Combines first/last author name + institution for display.
+    Includes DataTables sorting/filtering and Plotly graphs.
     """
 
     import pandas as pd
     import json
 
     df = df.copy()
-    df.insert(0, "#", range(1, len(df) + 1))  # Add paper numbering
+
+    # Combine author name + institution
+    if all(col in df.columns for col in ["first_author_name", "first_author_institution"]):
+        df['first_author'] = df.apply(
+            lambda r: f"{r['first_author_name']} | {r['first_author_institution']}", axis=1
+        )
+    if all(col in df.columns for col in ["last_author_name", "last_author_institution"]):
+        df['last_author'] = df.apply(
+            lambda r: f"{r['last_author_name']} | {r['last_author_institution']}", axis=1
+        )
+
+    # Drop the separate columns to avoid clutter
+    for col in ["first_author_name", "first_author_institution", "last_author_name", "last_author_institution"]:
+        if col in df.columns:
+            df.drop(columns=[col], inplace=True)
+
+    # Add paper numbering
+    df.insert(0, "#", range(1, len(df) + 1))
 
     # Ensure numeric columns are numeric
     if "citations_total" in df.columns:
@@ -382,7 +452,7 @@ def render_search_output(df):
         df[yc] = pd.to_numeric(df[yc], errors="coerce").fillna(0).astype(int)
     year_cols_sorted = sorted(year_cols)
 
-    # Generate clean HTML
+    # Generate clean HTML table
     table_html = df.to_html(
         classes="display nowrap",
         index=False,
@@ -398,13 +468,10 @@ def render_search_output(df):
     html = f"""
 <html>
 <head>
-    <!-- DataTables CSS & JS -->
     <link rel="stylesheet" type="text/css"
           href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-
-    <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
@@ -423,13 +490,13 @@ def render_search_output(df):
             paging: true,
             searching: true,
             order: [[2, "desc"]],
-            scrollX: true
+            scrollX: true,
+            responsive: true
         }});
 
         var colNames = {columns_json};
         var yearCols = {years_json};
 
-        // Find column indices dynamically
         var colIndex = {{
             num: colNames.indexOf("#"),
             title: colNames.indexOf("title"),
@@ -455,20 +522,22 @@ def render_search_output(df):
             var paperNums = visibleRows.map(r => cleanNumber(r[colIndex.num]));
             var totalCitations = visibleRows.map(r => cleanNumber(r[colIndex.citations]));
 
-            // --- Total Citations Plot ---
+            // Total Citations Bar
             Plotly.react('citation_dist', [{{
                 x: paperNums,
                 y: totalCitations,
                 type: 'bar',
                 name: 'Total Citations',
-                marker: {{ color: 'skyblue' }}
+                marker: {{ color: 'skyblue' }},
+                text: visibleRows.map(r => r[colNames.indexOf("first_author")] + '<br>' + r[colNames.indexOf("last_author")]),
+                hoverinfo: 'x+y+text'
             }}], {{
                 title: 'Total Citations (Visible Papers)',
                 xaxis: {{ title: 'Paper #' }},
                 yaxis: {{ title: 'Citations' }}
             }});
 
-            // --- Citations Over Last 4 Years ---
+            // Last 4 Years Line Plot
             var newTraces = [];
             visibleRows.forEach(function(r) {{
                 var y_vals = yearIndices.map(i => cleanNumber(r[i]));
@@ -476,7 +545,9 @@ def render_search_output(df):
                     x: yearCols,
                     y: y_vals,
                     mode: 'lines+markers',
-                    name: 'Paper ' + r[colIndex.num]
+                    name: 'Paper ' + r[colIndex.num] + ': ' + r[colNames.indexOf("title")],
+                    text: r[colNames.indexOf("first_author")] + '<br>' + r[colNames.indexOf("last_author")],
+                    hoverinfo: 'name+x+y+text'
                 }});
             }});
 
@@ -490,7 +561,7 @@ def render_search_output(df):
         // Initial render
         updatePlots();
 
-        // Update on sort/search/page/length change
+        // Update on table change
         table.on('order.dt search.dt page.dt length.dt', function() {{
             updatePlots();
         }});
@@ -501,111 +572,204 @@ def render_search_output(df):
 """
     return html
 
-def normalize_doi(doi):
-    """Normalize DOI by removing prefix and lowercasing."""
-    if not doi:
-        return None
-    doi = doi.strip().lower()
-    if doi.startswith("https://doi.org/"):
-        doi = doi[len("https://doi.org/"):]
-    return doi
+prestige_rank = {
+    "NeurIPS": 10,
+    "CVPR": 9,
+    "ICML": 9,
+    "ECCV": 8,
+    "ICLR": 8,
+    "AAAI": 7,
+    "IJCAI": 7,
+    "SIGGRAPH": 10,  # High prestige for computer graphics
+    "MICCAI": 8,
+    # Add more conferences and their rankings...
+}
 
-# -----------------------------
-# Async fetch of paper metadata
-# -----------------------------
-async def fetch_paper_metadata(session, openalex_id):
+author_cache = {}
+
+async def fetch_author_metadata(session, author_name, institution_name=None, attempt=1):
+    OPENALEX_URL = "https://api.openalex.org"
     """
-    Fetch paper metadata from OpenAlex API, especially referenced_works.
+    Fetch additional metadata (e.g., citation count) for an author using OpenAlex.
+    This function applies exponential backoff when rate limited.
     """
-    url = f"https://api.openalex.org/works/{openalex_id}"
+    if author_name in author_cache:
+        print(f"Using cached data for {author_name}")
+        return author_cache[author_name]  # Return cached data
+    
+    # Extract only the author's name (remove affiliation part)
+    author_name_only = author_name.split(' | ')[0]  # Everything before the first " | "
+    
     try:
-        async with session.get(url, timeout=20) as resp:
-            if resp.status != 200:
-                return {}
-            return await resp.json()
-    except Exception as e:
-        print(f"Error fetching {url}: {e}")
-        return {}
+        # Base query URL for searching authors
+        query_url = f"{OPENALEX_URL}/authors?search={urllib.parse.quote(author_name_only)}"
+        
+        # If institution_name is provided, refine the query
+        if institution_name:
+            query_url += f"&filter=affiliations.institution.display_name:{urllib.parse.quote(institution_name)}"
+        
+        # Making the request with SSL verification disabled
+        async with session.get(query_url, ssl=False) as response:  # ssl=False to disable certificate verification
+            # Handle Rate Limiting (HTTP 429)
+            if response.status == 429:
+                reset_time = int(response.headers.get("X-RateLimit-Reset", time.time() + 60))  # Default to 60 seconds
+                sleep_time = reset_time - time.time()
+                if sleep_time > 0:
+                    # Exponential backoff with random jitter
+                    wait_time = min(2 ** attempt + random.uniform(0, 1), 120)  # Increase max wait time to 120 seconds
+                    print(f"Rate limited. Sleeping for {wait_time:.2f} seconds before retrying for {author_name_only}")
+                    await asyncio.sleep(wait_time)
+                    return await fetch_author_metadata(session, author_name, institution_name, attempt + 1)  # Retry with increased attempt
 
-# -----------------------------
-# Build Citation Network (bibliographic coupling)
-# -----------------------------
-async def build_citation_network_async(df):
+            # Handle Access Denied (HTTP 403)
+            elif response.status == 403:
+                print(f"Access forbidden for {author_name_only}. Skipping.")
+                return {'author': author_name_only, 'citations': 0}
+
+            # Handle Not Found (HTTP 404) and other errors
+            if response.status != 200:
+                print(f"Error fetching data for {author_name_only}: {response.status}")
+                return {'author': author_name_only, 'citations': 0}
+
+            # Parse JSON response
+            data = await response.json()
+
+            if not data.get("results"):
+                print(f"No results found for {author_name_only}.")
+                return {'author': author_name_only, 'citations': 0}
+
+            # Extract citation data
+            total_citations = data['results'][0].get('cited_by_count', 0)
+            
+            # Cache the result
+            result = {'author': author_name_only, 'citations': total_citations}
+            author_cache[author_name_only] = result
+            return result
+
+    except Exception as e:
+        print(f"Error while fetching metadata for {author_name_only}: {e}")
+        return {'author': author_name_only, 'citations': 0}
+
+
+async def build_author_conference_network_async(df, min_shared_conferences=1, min_citations=1):
     """
-    Build a weighted network where papers are connected based on shared references.
-    Weight = number of shared references between two papers.
+    Build an async author-level network based on conference participation.
+    Node size = # conferences
+    Edge weight = # shared prestigious conferences (by year)
     """
     df = df.copy()
-    df["norm_doi"] = df["doi"].apply(normalize_doi)
     G = nx.Graph()
+    author_confs = defaultdict(lambda: defaultdict(set))  # author -> {year -> set(conferences)}
 
-    # Add nodes
-    for i, row in df.iterrows():
-        G.add_node(
-            i,
-            title=row.get("title", f"Paper {i}"),
-            doi=row.get("norm_doi"),
-            citations=int(row.get("citations_total", 0) or 0),
-            year=row.get("publication_year", "N/A")
-        )
+    # Get top 100 authors based on citation count
+    top_100_authors_df = df.nlargest(100, 'citations_total')  # Assumes 'citations_total' is the column with citation count
+    top_100_authors = set(top_100_authors_df['first_author'].tolist() + top_100_authors_df['last_author'].tolist())
 
-    # Fetch references for all papers asynchronously
+    # Collect authors -> conferences mapping
+    for _, row in df.iterrows():
+        authors = []
+        if row.get("first_author") and row["first_author"] != "N/A":
+            authors.append(row["first_author"])
+        if row.get("last_author") and row["last_author"] != "N/A":
+            authors.append(row["last_author"])
+
+        conf_name = row.get("venue") or row.get("conference") or "Unknown Venue"
+        year = str(row.get("publication_year", "N/A"))
+
+        for author in authors:
+            if author in top_100_authors:
+                author_confs[author][year].add(conf_name)
+
+    # Exit early if no authors found
+    if len(author_confs) == 0:
+        print("⚠️ No authors found in DataFrame.")
+        return G
+
+    print(f"DEBUG: Total authors collected: {len(author_confs)}")
+
+    # Optionally fetch additional metadata asynchronously (e.g., citations) for the top 100 authors
     async with aiohttp.ClientSession() as session:
-        tasks = []
-        for row in df.itertuples():
-            # Use OpenAlex ID if available
-            openalex_id = getattr(row, "id", None) or getattr(row, "openalex_id", None)
-            if openalex_id:
-                tasks.append(fetch_paper_metadata(session, openalex_id))
-            else:
-                tasks.append(asyncio.sleep(0, result={}))
-
+        tasks = [fetch_author_metadata(session, author) for author in author_confs.keys()]
         results = await asyncio.gather(*tasks)
 
-    # Store references per paper
-    paper_refs = []
-    for data in results:
-        refs = set()
-        for ref in data.get("referenced_works", []):
-            if ref:  # ensure not None
-                refs.add(ref.lower())
-        paper_refs.append(refs)
+    # Add nodes for authors with citation and shared conference filters
+    author_metadata = {result['author']: result for result in results}
+    skipped_authors = []
 
-    # Build edges based on shared references
-    n = len(df)
-    for i in range(n):
-        for j in range(i + 1, n):
-            shared_refs = paper_refs[i] & paper_refs[j]
-            weight = len(shared_refs)
-            if weight > 0:
-                G.add_edge(i, j, weight=weight)
+    for author, confs_by_year in author_confs.items():
+        total_confs = sum(len(confs) for confs in confs_by_year.values())
+        
+        # Get citation data from metadata
+        citations = author_metadata.get(author, {}).get('citations', 0)
+        
+        # Apply minimum filters: only add nodes with enough conferences and citations
+        if total_confs >= min_shared_conferences and citations >= min_citations:
+            G.add_node(
+                author,
+                conferences=total_confs,
+                years=list(confs_by_year.keys()),
+                citations=citations,
+                metadata=author_metadata.get(author, {})
+            )
+        else:
+            skipped_authors.append(author)
 
+    # Add edges based on shared prestigious conferences
+    authors_list = list(G.nodes())  # Only include authors who passed the filters
+    for a1, a2 in itertools.combinations(authors_list, 2):
+        shared_count = 0
+        for year in set(author_confs[a1].keys()) & set(author_confs[a2].keys()):
+            shared_confs = author_confs[a1][year] & author_confs[a2][year]
+            # Calculate common prestigious conferences
+            shared_count += sum(prestige_rank.get(conf, 0) for conf in shared_confs)
+
+        if shared_count > 0:
+            G.add_edge(a1, a2, weight=shared_count)
+
+    print(f"DEBUG: Graph nodes: {G.number_of_nodes()} edges: {G.number_of_edges()}")
+    print(f"⚠️ Skipped authors: {skipped_authors}")
     return G
 
-# -----------------------------
-# Plot Citation Graph
-# -----------------------------
-def plot_citation_graph(G, title="Shared References Citation Network"):
+
+def plot_author_conference_graph(
+    G, 
+    title="Author Conference Network", 
+    min_shared_conferences=1, 
+    min_citations=0
+):
     """
-    Visualize weighted network based on shared references.
-    Node size = total weight of edges (total shared references).
-    Edge thickness = number of shared references.
+    Plot the author-conference network with optional filters:
+      - min_shared_conferences: only show edges with at least this many shared conferences
+      - min_citations: only show authors with at least this many total conferences/citations
     """
     if G.number_of_nodes() == 0:
-        print("⚠️ No nodes found in citation graph.")
+        print("⚠️ No authors found.")
         return None
 
-    # Layout
-    pos = nx.spring_layout(G, k=0.8, iterations=150, seed=42)
+    # Step 1: Filter edges by min_shared_conferences
+    H = nx.Graph()
+    for u, v, data in G.edges(data=True):
+        if data.get("weight", 0) >= min_shared_conferences:
+            H.add_edge(u, v, **data)
+
+    # Step 2: Filter nodes by min_citations and ensure they are connected
+    for node, data in G.nodes(data=True):
+        if node in H.nodes and data.get("conferences", 0) >= min_citations:
+            H.nodes[node].update(data)
+
+    if H.number_of_nodes() == 0:
+        print(f"⚠️ No authors meet the thresholds: min_shared_conferences={min_shared_conferences}, min_citations={min_citations}")
+        return None
+
+    pos = nx.spring_layout(H, k=0.8, iterations=150, seed=42)
 
     # Edges
-    edge_x, edge_y, edge_width = [], [], []
-    for u, v, data in G.edges(data=True):
+    edge_x, edge_y = [], []
+    for u, v, data in H.edges(data=True):
         x0, y0 = pos[u]
         x1, y1 = pos[v]
         edge_x += [x0, x1, None]
         edge_y += [y0, y1, None]
-        edge_width.append(max(0.5, data.get("weight", 1)))
 
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
@@ -616,18 +780,15 @@ def plot_citation_graph(G, title="Shared References Citation Network"):
 
     # Nodes
     node_x, node_y, node_text, node_size = [], [], [], []
-    for node, data in G.nodes(data=True):
+    for node, data in H.nodes(data=True):
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
-
-        total_weight = sum(G[node][nbr]["weight"] for nbr in G[node])
-        node_size.append(max(10, 5 + total_weight ** 0.8))
-
+        node_size.append(max(10, data.get("conferences", 1) * 5))
         node_text.append(
-            f"<b>{data['title']}</b><br>"
-            f"DOI: {data.get('doi')}<br>"
-            f"Total shared refs: {total_weight}"
+            f"<b>{node}</b><br>"
+            f"Conferences: {data.get('conferences',0)}<br>"
+            f"Years active: {', '.join(data.get('years',[]))}"
         )
 
     node_trace = go.Scatter(
@@ -639,7 +800,7 @@ def plot_citation_graph(G, title="Shared References Citation Network"):
             color=node_size,
             colorscale='Blues',
             showscale=True,
-            colorbar=dict(title="Shared References"),
+            colorbar=dict(title="Conference Count"),
             line_width=1
         )
     )
@@ -653,9 +814,7 @@ def plot_citation_graph(G, title="Shared References Citation Network"):
                     ))
     return fig
 
-# -----------------------------
-# Helper for Flask
-# -----------------------------
-def build_citation_network(df):
+
+def build_author_conference_network(df):
     """Sync wrapper for Flask"""
-    return asyncio.run(build_citation_network_async(df))
+    return asyncio.run(build_author_conference_network_async(df))

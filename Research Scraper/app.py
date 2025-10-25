@@ -1,12 +1,12 @@
-from flask import Flask, render_template, request, url_for, jsonify
 import os
 import asyncio
-
+import aiohttp
+from flask import Flask, render_template, request, url_for, jsonify
 from search_module import (
     find_and_extract,
     render_search_output,
-    build_citation_network_async,  # async co-citation network
-    plot_citation_graph
+    build_author_conference_network_async,  # correct name
+    plot_author_conference_graph              # updated plotting function
 )
 
 app = Flask(__name__)
@@ -81,9 +81,18 @@ def search():
 
         <div class="mt-4">{html_table}</div>
 
+        <div class="mt-4">
+            <label for="min_shared_conferences">Min Shared Conferences:</label>
+            <input type="number" id="min_shared_conferences" value="1" min="1" class="form-control" style="width: auto;">
+        </div>
+        <div class="mt-4">
+            <label for="min_citations">Min Citations:</label>
+            <input type="number" id="min_citations" value="1" min="1" class="form-control" style="width: auto;">
+        </div>
+
         <div class="form-check form-switch mt-4">
             <input class="form-check-input" type="checkbox" id="toggle_network">
-            <label class="form-check-label" for="toggle_network">Show Co-Citation Network</label>
+            <label class="form-check-label" for="toggle_network">Show Author Conference Network</label>
         </div>
 
         <div id="spinner"></div>
@@ -95,6 +104,8 @@ def search():
             const toggle = document.getElementById('toggle_network');
             const spinner = document.getElementById('spinner');
             const container = document.getElementById('graph_container');
+            const minSharedConferencesInput = document.getElementById('min_shared_conferences');
+            const minCitationsInput = document.getElementById('min_citations');
 
             toggle.addEventListener('change', async () => {{
                 if (toggle.checked) {{
@@ -105,6 +116,9 @@ def search():
                         formData.append('query', '{query}');
                         formData.append('mode', '{mode}');
                         formData.append('n', '{n}');
+                        formData.append('min_shared_conferences', minSharedConferencesInput.value);
+                        formData.append('min_citations', minCitationsInput.value);
+                        
                         const resp = await fetch('/network', {{
                             method: 'POST',
                             body: formData
@@ -141,22 +155,38 @@ def network():
         n = max(1, n)
     except ValueError:
         n = 10
-
+        
+    # Get the filtering values from the form
+    min_shared_conferences = int(request.form.get("min_shared_conferences", 2))  # Default to 2
+    min_citations = int(request.form.get("min_citations", 20))  # Default to 20
+    
     try:
         df = find_and_extract(query, n=n, mode=mode, print_output=False)
-        G = asyncio.run(build_citation_network_async(df))
-        fig = plot_citation_graph(G, title="Co-Citation Network")
+        
+        # Define an async function to build and plot the graph
+        async def build_and_plot():
+            G = await build_author_conference_network_async(df)
+            
+            # Pass the filter values to the plotting function
+            fig = plot_author_conference_graph(G, title="Author Conference Network", 
+                                               min_shared_conferences=min_shared_conferences, 
+                                               min_citations=min_citations)
 
-        os.makedirs("static", exist_ok=True)
-        graph_path = os.path.join("static", "citation_graph.html")
-        if fig:
-            fig.write_html(graph_path, include_plotlyjs="cdn")
-            html = f'<iframe src="{url_for("static", filename="citation_graph.html")}" width="100%" height="600" style="border:1px solid #ddd; border-radius:5px;"></iframe>'
-            return jsonify(success=True, html=html)
-        else:
-            return jsonify(success=False, error="No valid co-citation graph could be generated.")
+            os.makedirs("static", exist_ok=True)
+            graph_path = os.path.join("static", "author_network.html")
+            if fig:
+                fig.write_html(graph_path, include_plotlyjs="cdn")
+                html = f'<iframe src="{url_for("static", filename="author_network.html")}" width="100%" height="600" style="border:1px solid #ddd; border-radius:5px;"></iframe>'
+                return jsonify(success=True, html=html)
+            else:
+                return jsonify(success=False, error="No valid author network could be generated.")
+        
+        # Run the async function to generate the graph
+        return asyncio.run(build_and_plot())
+
     except Exception as e:
         return jsonify(success=False, error=str(e))
+
 
 # ------------------------------
 # Run Flask app
