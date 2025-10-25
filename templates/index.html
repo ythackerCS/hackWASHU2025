@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Paper Search</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+</head>
+<body class="container mt-5">
+    <h1>Search Papers</h1>
+    <form action="/search" method="post">
+        <div class="mb-3">
+            <input type="text" name="query" class="form-control" placeholder="Enter search term" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Mode:</label><br>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="mode" id="mode_sections" value="sections" checked>
+                <label class="form-check-label" for="mode_sections">Sections (default)</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="mode" id="mode_full" value="full">
+                <label class="form-check-label" for="mode_full">Full</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="mode" id="mode_notext" value="notext">
+                <label class="form-check-label" for="mode_notext">No Text</label>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Number of results (n):</label>
+            <input type="number" name="n" class="form-control" value="3" min="1" max="50">
+            <small class="form-text text-muted">Higher numbers may take longer to load.</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+</body>
+</html>
