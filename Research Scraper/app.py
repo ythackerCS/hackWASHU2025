@@ -23,7 +23,7 @@ import os, re
 from pathlib import Path
 
 KEY_ENV = "OPENAI_API_KEY"
-KEY_FILE = Path("secrets/openai_key.txt")
+KEY_FILE = Path("/Users/tyrellto/Documents/hack2025/Research Scraper/secrets/openai_key.txt")
 
 def load_openai_key() -> str:
     """
