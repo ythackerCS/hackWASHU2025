@@ -412,7 +412,7 @@ def generate_html_file(df, filename="search_results.html"):
         f.write(html)
     return filename
 
-def render_search_output(df):
+def render_paper_search_output(df):
     """
     Render a search results DataFrame as interactive HTML.
     Combines first/last author name + institution for display.

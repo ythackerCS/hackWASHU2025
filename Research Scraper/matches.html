@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Paper–Patent Matches (with Talent Ranking)</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      margin: 1.5rem; background:#fafafa;
+    }
+    table.dataTable thead th { white-space: nowrap; }
+    details > summary { cursor:pointer; color:#0d6efd; }
+    details[open] > summary { color:#0a58ca; }
+  </style>
+</head>
+<body>
+  <h2>Top Matches (Paper ↔ Patent) with Author/Inventor Ranking</h2>
+  <table class="dataframe display nowrap compact" id="matches_table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>#</th>
+      <th>Paper</th>
+      <th>First Author</th>
+      <th>Last Author</th>
+      <th>Citations</th>
+      <th>Patent ID</th>
+      <th>Patent Title</th>
+      <th>Lead Inventor</th>
+      <th>Fit Score</th>
+      <th>Summary</th>
+      <th>Top Author (fit)</th>
+      <th>Top Inventor (fit)</th>
+      <th>Overlap Bonus?</th>
+      <th>Ranked Authors</th>
+      <th>Ranked Inventors</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><a href="https://doi.org/10.1371/journal.pdig.0000198" target="_blank" rel="noopener noreferrer">Performance of ChatGPT on USMLE</a></td>
+      <td>Tiffany H. Kung</td>
+      <td>Victor Tseng</td>
+      <td>2742</td>
+      <td>US-2022276707-A1</td>
+      <td>Brain-computer interface</td>
+      <td>BARASCUD NICOLAS</td>
+      <td>6</td>
+      <td><details><summary>The research paper on AI in medical diagnostics aligns with the patent&#x27;s focus on brain-computer interfaces, suggesting potential applications in healthcare. However, the lack of a...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper on AI in medical diagnostics aligns with the patent&#x27;s focus on brain-computer interfaces, suggesting potential applications in healthcare. However, the lack of author-inventor overlap indicates a gap in direct collaboration, which may affect implementability.</div></details></td>
+      <td>Tiffany H. Kung (7)</td>
+      <td>BARASCUD NICOLAS (5)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Tiffany H. Kung&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;Her expertise in AI applications in medicine is relevant to the patent&#x27;s technology.&quot;}, {&quot;name&quot;: &quot;Victor Tseng&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;His contributions to AI in diagnostics provide a solid foundation for potential applications.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;BARASCUD NICOLAS&quot;, &quot;score_1to10&quot;: 5, &quot;reason&quot;: &quot;His work on brain-computer interfaces is innovative but less directly related to medical diagnostics.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><a href="https://doi.org/10.1016/j.ijinfomgt.2023.102642" target="_blank" rel="noopener noreferrer">Opinion Paper: “So what if ChatGPT wrote it?”</a></td>
+      <td>Yogesh K. Dwivedi</td>
+      <td>Ryan Wright</td>
+      <td>2660</td>
+      <td>US-2021223864-A1</td>
+      <td>Brain computer interface for augmented reality</td>
+      <td>FORSLAND ANDREAS</td>
+      <td>6</td>
+      <td><details><summary>The research paper discusses generative AI, which has potential applications in augmented reality systems, while the patent focuses on brain-computer interfaces. However, the lack ...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper discusses generative AI, which has potential applications in augmented reality systems, while the patent focuses on brain-computer interfaces. However, the lack of direct overlap between authors and inventors limits the synergy for commercialization.</div></details></td>
+      <td>Yogesh K. Dwivedi (7)</td>
+      <td>FORSLAND ANDREAS (8)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Yogesh K. Dwivedi&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;His expertise in AI applications can contribute valuable insights to the development of AR technologies.&quot;}, {&quot;name&quot;: &quot;Ryan Wright&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;His perspective on AI implications may help in understanding user interactions with AR systems.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;FORSLAND ANDREAS&quot;, &quot;score_1to10&quot;: 8, &quot;reason&quot;: &quot;As the lead inventor, his work on BCI technology is crucial for implementing AR applications.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><a href="https://doi.org/10.1371/journal.pdig.0000198" target="_blank" rel="noopener noreferrer">Performance of ChatGPT on USMLE</a></td>
+      <td>Tiffany H. Kung</td>
+      <td>Victor Tseng</td>
+      <td>2742</td>
+      <td>US-10980466-B2</td>
+      <td>Brain computer interface apparatus</td>
+      <td>LEE SEONG-WHAN</td>
+      <td>5</td>
+      <td><details><summary>The research paper focuses on AI applications in medical diagnostics, while the patent pertains to brain-computer interfaces for robotic control. There is no direct overlap, but bo...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper focuses on AI applications in medical diagnostics, while the patent pertains to brain-computer interfaces for robotic control. There is no direct overlap, but both fields involve advanced technology that could intersect in healthcare robotics.</div></details></td>
+      <td>Tiffany H. Kung (6)</td>
+      <td>LEE SEONG-WHAN (7)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Tiffany H. Kung&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Her work on AI in diagnostics is relevant to potential applications in healthcare technology.&quot;}, {&quot;name&quot;: &quot;Victor Tseng&quot;, &quot;score_1to10&quot;: 5, &quot;reason&quot;: &quot;His contributions to AI in medicine provide a foundational understanding that could inform future innovations.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;LEE SEONG-WHAN&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;His expertise in brain-computer interfaces is crucial for integrating AI into robotic applications.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><a href="https://doi.org/10.1371/journal.pdig.0000198" target="_blank" rel="noopener noreferrer">Performance of ChatGPT on USMLE</a></td>
+      <td>Tiffany H. Kung</td>
+      <td>Victor Tseng</td>
+      <td>2742</td>
+      <td>US-2021223864-A1</td>
+      <td>Brain computer interface for augmented reality</td>
+      <td>FORSLAND ANDREAS</td>
+      <td>5</td>
+      <td><details><summary>The research paper focuses on AI applications in medical diagnostics, while the patent addresses brain-computer interfaces for augmented reality. There is no direct overlap in expe...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper focuses on AI applications in medical diagnostics, while the patent addresses brain-computer interfaces for augmented reality. There is no direct overlap in expertise, but both fields involve advanced technology that could intersect in healthcare applications.</div></details></td>
+      <td>Tiffany H. Kung (6)</td>
+      <td>FORSLAND ANDREAS (4)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Tiffany H. Kung&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Her work in AI and diagnostics is relevant to potential healthcare applications.&quot;}, {&quot;name&quot;: &quot;Victor Tseng&quot;, &quot;score_1to10&quot;: 5, &quot;reason&quot;: &quot;Contributes to AI research, but less directly applicable to the patent&#x27;s focus.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;FORSLAND ANDREAS&quot;, &quot;score_1to10&quot;: 4, &quot;reason&quot;: &quot;Expertise in BCI technology, but lacks direct relevance to medical diagnostics.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><a href="https://doi.org/10.1371/journal.pdig.0000198" target="_blank" rel="noopener noreferrer">Performance of ChatGPT on USMLE</a></td>
+      <td>Tiffany H. Kung</td>
+      <td>Victor Tseng</td>
+      <td>2742</td>
+      <td>US-12001602-B2</td>
+      <td>Brain-computer interface with adaptations</td>
+      <td>ALCAIDE RAMSES</td>
+      <td>5</td>
+      <td><details><summary>The research paper focuses on AI applications in medical diagnostics, while the patent addresses brain-computer interfaces. Although both involve advanced technology, their specifi...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper focuses on AI applications in medical diagnostics, while the patent addresses brain-computer interfaces. Although both involve advanced technology, their specific applications differ significantly, leading to a moderate fit.</div></details></td>
+      <td>Tiffany H. Kung (6)</td>
+      <td>ALCAIDE RAMSES (7)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Tiffany H. Kung&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Her expertise in AI applications in medicine provides valuable insights for potential commercialization.&quot;}, {&quot;name&quot;: &quot;Victor Tseng&quot;, &quot;score_1to10&quot;: 5, &quot;reason&quot;: &quot;His contributions to AI in diagnostics are relevant but less directly applicable to BCI technology.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;ALCAIDE RAMSES&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;As the lead inventor, his work on BCI systems is crucial for developing user interfaces that could integrate AI diagnostics.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><a href="https://doi.org/10.1371/journal.pdig.0000198" target="_blank" rel="noopener noreferrer">Performance of ChatGPT on USMLE</a></td>
+      <td>Tiffany H. Kung</td>
+      <td>Victor Tseng</td>
+      <td>2742</td>
+      <td>US-12053308-B2</td>
+      <td>Brain-computer interface with high-speed eye tracking features</td>
+      <td>ALCAIDE RAMSES</td>
+      <td>5</td>
+      <td><details><summary>The research paper focuses on AI in medical diagnostics, while the patent addresses brain-computer interfaces, indicating a moderate adjacency in technology. However, the lack of o...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper focuses on AI in medical diagnostics, while the patent addresses brain-computer interfaces, indicating a moderate adjacency in technology. However, the lack of overlap between authors and inventors suggests limited direct collaboration potential.</div></details></td>
+      <td>Tiffany H. Kung (6)</td>
+      <td>ALCAIDE RAMSES (7)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Tiffany H. Kung&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Her expertise in AI applications in healthcare aligns with potential uses in BCI.&quot;}, {&quot;name&quot;: &quot;Victor Tseng&quot;, &quot;score_1to10&quot;: 5, &quot;reason&quot;: &quot;His background in AI and diagnostics could provide insights, but lacks direct relevance to BCI.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;ALCAIDE RAMSES&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;As the lead inventor, he has significant expertise in BCI technology, which is crucial for commercialization.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><a href="https://doi.org/10.1016/j.lindif.2023.102274" target="_blank" rel="noopener noreferrer">ChatGPT for good?</a></td>
+      <td>Enkelejda Kasneci</td>
+      <td>Gjergji Kasneci</td>
+      <td>3094</td>
+      <td>US-2021223864-A1</td>
+      <td>Brain computer interface for augmented reality</td>
+      <td>FORSLAND ANDREAS</td>
+      <td>5</td>
+      <td><details><summary>The research paper explores large language models, which could complement the functionality of a brain-computer interface in augmented reality. However, the lack of direct overlap ...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper explores large language models, which could complement the functionality of a brain-computer interface in augmented reality. However, the lack of direct overlap between authors and inventors indicates a gap in collaborative expertise.</div></details></td>
+      <td>Enkelejda Kasneci (6)</td>
+      <td>FORSLAND ANDREAS (7)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Enkelejda Kasneci&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Her work on language models provides relevant insights for user interaction in AR.&quot;}, {&quot;name&quot;: &quot;Gjergji Kasneci&quot;, &quot;score_1to10&quot;: 5, &quot;reason&quot;: &quot;While knowledgeable, his contributions are less directly applicable to BCI technology.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;FORSLAND ANDREAS&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;As the lead inventor, his expertise in BCI is crucial for the patent&#x27;s implementation.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><a href="https://doi.org/10.1016/j.lindif.2023.102274" target="_blank" rel="noopener noreferrer">ChatGPT for good?</a></td>
+      <td>Enkelejda Kasneci</td>
+      <td>Gjergji Kasneci</td>
+      <td>3094</td>
+      <td>US-2022276707-A1</td>
+      <td>Brain-computer interface</td>
+      <td>BARASCUD NICOLAS</td>
+      <td>5</td>
+      <td><details><summary>The research paper explores the implications of large language models, while the patent focuses on brain-computer interfaces, indicating a potential but indirect connection. The la...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper explores the implications of large language models, while the patent focuses on brain-computer interfaces, indicating a potential but indirect connection. The lack of overlap between authors and inventors suggests limited synergy for commercialization.</div></details></td>
+      <td>Enkelejda Kasneci (6)</td>
+      <td>BARASCUD NICOLAS (7)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Enkelejda Kasneci&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Expertise in language models may provide insights into user interaction for brain-computer interfaces.&quot;}, {&quot;name&quot;: &quot;Gjergji Kasneci&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Knowledge of AI applications could enhance the development of adaptive calibration methods.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;BARASCUD NICOLAS&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;Lead inventor on a relevant patent, indicating strong technical capabilities in brain-computer interfaces.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td><a href="https://doi.org/10.1016/j.lindif.2023.102274" target="_blank" rel="noopener noreferrer">ChatGPT for good?</a></td>
+      <td>Enkelejda Kasneci</td>
+      <td>Gjergji Kasneci</td>
+      <td>3094</td>
+      <td>US-12053308-B2</td>
+      <td>Brain-computer interface with high-speed eye tracking features</td>
+      <td>ALCAIDE RAMSES</td>
+      <td>5</td>
+      <td><details><summary>The research paper explores large language models, while the patent focuses on eye tracking in brain-computer interfaces, indicating a moderate fit in technology but differing appl...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper explores large language models, while the patent focuses on eye tracking in brain-computer interfaces, indicating a moderate fit in technology but differing applications. The lack of overlap between authors and inventors suggests limited direct collaboration potential.</div></details></td>
+      <td>Enkelejda Kasneci (6)</td>
+      <td>ALCAIDE RAMSES (7)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Enkelejda Kasneci&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Expertise in AI and language models may contribute to innovative applications in user interaction.&quot;}, {&quot;name&quot;: &quot;Gjergji Kasneci&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;Knowledge in AI could enhance the development of user-friendly interfaces in BCI technology.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;ALCAIDE RAMSES&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;Lead inventor on a relevant patent, indicating strong technical capability in BCI technology.&quot;}]</pre></details></td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td><a href="https://doi.org/10.1016/j.ijinfomgt.2023.102642" target="_blank" rel="noopener noreferrer">Opinion Paper: “So what if ChatGPT wrote it?”</a></td>
+      <td>Yogesh K. Dwivedi</td>
+      <td>Ryan Wright</td>
+      <td>2660</td>
+      <td>US-10980466-B2</td>
+      <td>Brain computer interface apparatus</td>
+      <td>LEE SEONG-WHAN</td>
+      <td>5</td>
+      <td><details><summary>The research paper discusses generative conversational AI, while the patent focuses on brain-computer interfaces, indicating a moderate adjacency in technology. However, the lack o...</summary><div style="white-space:pre-wrap;margin-top:.5rem;">The research paper discusses generative conversational AI, while the patent focuses on brain-computer interfaces, indicating a moderate adjacency in technology. However, the lack of overlap between authors and inventors suggests limited direct collaboration potential.</div></details></td>
+      <td>Yogesh K. Dwivedi (6)</td>
+      <td>LEE SEONG-WHAN (7)</td>
+      <td>No</td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;Yogesh K. Dwivedi&quot;, &quot;score_1to10&quot;: 6, &quot;reason&quot;: &quot;His expertise in AI applications provides relevant insights for commercialization.&quot;}, {&quot;name&quot;: &quot;Ryan Wright&quot;, &quot;score_1to10&quot;: 5, &quot;reason&quot;: &quot;Contributes to the discourse on AI but with less direct applicability to the patent&#x27;s technology.&quot;}]</pre></details></td>
+      <td><details><summary>show</summary><pre style="white-space:pre-wrap;margin:0.5rem 0;">[{&quot;name&quot;: &quot;LEE SEONG-WHAN&quot;, &quot;score_1to10&quot;: 7, &quot;reason&quot;: &quot;Lead inventor on a relevant patent, indicating strong technical capability.&quot;}]</pre></details></td>
+    </tr>
+  </tbody>
+</table>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script>
+    $(function(){
+      const colNames = ["#", "Paper", "First Author", "Last Author", "Citations", "Patent ID", "Patent Title", "Lead Inventor", "Fit Score", "Summary", "Top Author (fit)", "Top Inventor (fit)", "Overlap Bonus?", "Ranked Authors", "Ranked Inventors"];
+      const scoreIdx = colNames.indexOf("Fit Score");
+      const order = (scoreIdx >= 0) ? [[scoreIdx, "desc"]] : [[0, "asc"]];
+      $('#matches_table').DataTable({
+        paging:true, searching:true, order:order, scrollX:true,
+        responsive:true, pageLength:10, lengthMenu:[10,25,50,100]
+      });
+    });
+  </script>
+</body>
+</html>

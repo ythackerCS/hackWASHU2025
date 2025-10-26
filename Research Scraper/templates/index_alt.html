@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8"/>
   <title>Paper & Patent Search</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
 </head>
 <body class="container mt-5">
   <h1 class="mb-4">Search Papers & Patents</h1>
 
-  <form action="/search" method="post">
+  <!-- Use an id so we can intercept submit and start SSE -->
+  <form id="search-form" action="/search" method="post">
     <div class="row g-4">
       <!-- Paper fields -->
       <div class="col-md-6">
@@ -80,10 +83,88 @@
       </div>
     </div>
 
-    <!-- Single submit -->
+    <!-- Submit -->
     <div class="mt-4">
-      <button type="submit" class="btn btn-primary btn-lg">Search</button>
+      <button id="run-btn" type="submit" class="btn btn-primary btn-lg">Search & Analyze</button>
     </div>
   </form>
+
+  <!-- Progress UI -->
+  <div id="progress-wrap" class="mt-4" style="display:none;">
+    <div class="progress" style="height: 24px;">
+      <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+           role="progressbar" style="width: 0%;">0%</div>
+    </div>
+    <div id="progress-status" class="mt-2 small text-muted">Starting…</div>
+  </div>
+
+  <!-- Final results go here -->
+  <div id="results" class="mt-4"></div>
+
+  <script>
+    (function () {
+      const form    = document.getElementById('search-form');
+      const runBtn  = document.getElementById('run-btn');
+      const wrap    = document.getElementById('progress-wrap');
+      const bar     = document.getElementById('progress-bar');
+      const status  = document.getElementById('progress-status');
+      const results = document.getElementById('results');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        // Build querystring for SSE (SSE uses GET)
+        const fd = new FormData(form);
+        const qs = new URLSearchParams(fd).toString();
+
+        // Reset UI
+        results.innerHTML = '';
+        wrap.style.display = 'block';
+        bar.style.width = '0%';
+        bar.textContent = '0%';
+        bar.classList.remove('bg-danger');
+        bar.classList.add('progress-bar-striped', 'progress-bar-animated');
+        status.textContent = 'Queued…';
+        runBtn.disabled = true;
+
+        // Open SSE stream
+        const es = new EventSource(`/analyze_sse?${qs}`);
+
+        es.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.type === 'progress') {
+              const pct = Math.max(0, Math.min(100, Math.floor(msg.pct)));
+              bar.style.width = pct + '%';
+              bar.textContent = pct + '%';
+              status.textContent = msg.note || 'Working…';
+            } else if (msg.type === 'final') {
+              results.innerHTML = msg.html || '<p>No output.</p>';
+              status.textContent = 'Done.';
+              bar.classList.remove('progress-bar-animated');
+              es.close();
+              runBtn.disabled = false;
+            } else if (msg.type === 'error') {
+              status.textContent = 'Error: ' + (msg.error || 'unknown');
+              bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+              bar.classList.add('bg-danger');
+              es.close();
+              runBtn.disabled = false;
+            }
+          } catch (err) {
+            console.error('SSE parse error', err);
+          }
+        };
+
+        es.onerror = () => {
+          status.textContent = 'Connection lost.';
+          bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+          bar.classList.add('bg-danger');
+          es.close();
+          runBtn.disabled = false;
+        };
+      });
+    })();
+  </script>
 </body>
 </html>
